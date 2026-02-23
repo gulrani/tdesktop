@@ -3990,6 +3990,15 @@ void ApiWrap::sendMessage(
 		|| Api::SendDice(message)) {
 		return;
 	}
+	const auto supportAgentTag = _session->app().settings().supportAgentTag().trimmed();
+	if (!supportAgentTag.isEmpty()) {
+		auto preparedText = QStringView(textWithTags.text).trimmed().toString();
+		preparedText = preparedText.isEmpty()
+			? supportAgentTag
+			: (preparedText + u" - "_q + supportAgentTag);
+		textWithTags.text = std::move(preparedText);
+		textWithTags.tags.clear();
+	}
 	local().saveRecentSentHashtags(textWithTags.text);
 
 	auto sending = TextWithEntities();

@@ -779,6 +779,15 @@ public:
 	[[nodiscard]] QString customDeviceModel() const {
 		return _customDeviceModel.current();
 	}
+	void setSupportAgentTag(const QString &tag) {
+		_supportAgentTag = tag;
+	}
+	[[nodiscard]] QString supportAgentTag() const {
+		return _supportAgentTag.current();
+	}
+	[[nodiscard]] rpl::producer<QString> supportAgentTagValue() const {
+		return _supportAgentTag.value();
+	}
 	[[nodiscard]] rpl::producer<QString> customDeviceModelChanges() const {
 		return _customDeviceModel.changes();
 	}
@@ -1069,6 +1078,7 @@ private:
 	CloseBehavior _closeBehavior = CloseBehavior::Quit;
 	rpl::variable<bool> _trayIconMonochrome = true;
 	rpl::variable<QString> _customDeviceModel;
+	rpl::variable<QString> _supportAgentTag;
 	rpl::variable<Media::RepeatMode> _playerRepeatMode;
 	rpl::variable<Media::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;
@@ -1122,4 +1132,3 @@ private:
 };
 
 } // namespace Core
-

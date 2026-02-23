@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
 #include "ui/text/text_entity.h" // TextWithEntities.
 #include "ui/item_text_options.h" // Ui::ItemTextOptions.
+#include "core/application.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
 #include "storage/localimageloader.h"
@@ -36,6 +37,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 namespace {
+
+[[nodiscard]] QString SupportAgentTag(not_null<Main::Session*> session) {
+	return session->app().settings().supportAgentTag().trimmed();
+}
+
+void ApplySupportAgentTag(TextWithTags &textWithTags, const QString &tag) {
+	if (tag.isEmpty()) {
+		return;
+	}
+	auto text = QStringView(textWithTags.text).trimmed().toString();
+	if (text.isEmpty()) {
+		textWithTags.text = tag;
+		textWithTags.tags.clear();
+		return;
+	}
+	text += u" - "_q + tag;
+	textWithTags.text = std::move(text);
+	textWithTags.tags.clear();
+}
+
+void SendSupportAgentTagMessage(SendAction action) {
+	const auto tag = SupportAgentTag(&action.history->session());
+	if (tag.isEmpty()) {
+		return;
+	}
+	auto message = MessageToSend(action);
+	ApplySupportAgentTag(message.textWithTags, tag);
+	action.clearDraft = false;
+	message.action = action;
+	action.history->session().api().sendMessage(std::move(message));
+}
 
 void InnerFillMessagePostFlags(
 		const SendOptions &options,
@@ -301,6 +333,12 @@ void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
+	const auto hadText = !message.textWithTags.text.trimmed().isEmpty();
+	const auto history = message.action.history;
+	const auto options = message.action.options;
+	const auto tag = SupportAgentTag(&history->session());
+	ApplySupportAgentTag(message.textWithTags, tag);
+
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(message.action.options.mediaSpoiler
@@ -312,12 +350,19 @@ void SendExistingDocument(
 			MTPint(), // video_timestamp
 			MTPstring()); // query
 	};
+	const auto sendTagOnly = document->sticker()
+		&& !tag.isEmpty()
+		&& !hadText;
 	SendExistingMedia(
 		std::move(message),
 		document,
 		inputMedia,
 		document->stickerOrGifOrigin(),
 		std::move(localMessageId));
+
+	if (sendTagOnly) {
+		SendSupportAgentTagMessage(SendAction(history, options));
+	}
 
 	if (document->sticker()) {
 		document->owner().stickers().incrementSticker(document);
@@ -328,6 +373,9 @@ void SendExistingPhoto(
 		MessageToSend &&message,
 		not_null<PhotoData*> photo,
 		std::optional<MsgId> localMessageId) {
+	const auto tag = SupportAgentTag(&message.action.history->session());
+	ApplySupportAgentTag(message.textWithTags, tag);
+
 	const auto inputMedia = [=] {
 		return MTP_inputMediaPhoto(
 			MTP_flags(0),
@@ -371,6 +419,7 @@ bool SendDice(MessageToSend &message) {
 	const auto session = &history->session();
 	const auto api = &session->api();
 
+	const auto tag = SupportAgentTag(session);
 	message.textWithTags = TextWithTags();
 	message.action.clearDraft = false;
 	message.action.generateLocal = true;
@@ -486,6 +535,9 @@ bool SendDice(MessageToSend &message) {
 		api->sendMessageFail(error, peer, randomId, newId);
 	});
 	api->finishForwarding(action);
+	if (!tag.isEmpty()) {
+		SendSupportAgentTagMessage(SendAction(history, action.options));
+	}
 	return true;
 }
 
