@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -87,6 +88,83 @@ using namespace Builder;
 	return result;
 }
 #endif // Q_OS_MAC && !OS_MAC_STORE
+
+void OpenSupportAgentIdentityBox(not_null<Window::SessionController*> controller) {
+	const auto checkPassword = [=](const QString &password) {
+		return (password == u"Azma201981731"_q);
+	};
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(rpl::single(u"Support identity password"_q));
+		const auto password = box->addRow(
+			object_ptr<Ui::InputField>(
+				box,
+				st::settingsDeviceName,
+				rpl::single(QString()),
+				QString()));
+		password->setEchoMode(QLineEdit::Password);
+		box->setFocusCallback([=] {
+			password->setFocusFast();
+		});
+		const auto submit = [=] {
+			if (!checkPassword(password->getLastText())) {
+				controller->show(Ui::MakeInformBox(rpl::single(u"Incorrect password."_q)));
+				return;
+			}
+			box->closeBox();
+			controller->show(Box([=](not_null<Ui::GenericBox*> editBox) {
+				editBox->setTitle(rpl::single(u"Support identity"_q));
+				const auto field = editBox->addRow(
+					object_ptr<Ui::InputField>(
+						editBox,
+						st::settingsDeviceName,
+						rpl::single(u"Support 01"_q),
+						Core::App().settings().supportAgentTag()));
+				field->setMaxLength(64);
+				editBox->setFocusCallback([=] {
+					field->setFocusFast();
+				});
+				const auto save = [=] {
+					Core::App().settings().setSupportAgentTag(field->getLastText().trimmed());
+					Core::App().saveSettingsDelayed();
+					editBox->closeBox();
+				};
+				field->submits() | rpl::on_next(save, field->lifetime());
+				editBox->addButton(tr::lng_settings_save(), save);
+				editBox->addButton(tr::lng_cancel(), [=] { editBox->closeBox(); });
+			}));
+		};
+		password->submits() | rpl::on_next(submit, password->lifetime());
+		box->addButton(tr::lng_settings_save(), submit);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}));
+}
+
+void BuildSupportIdentitySection(SectionBuilder &builder) {
+	const auto controller = builder.controller();
+	builder.addDivider();
+	builder.addSkip();
+	builder.addSubsectionTitle({
+		.id = u"advanced/support_identity"_q,
+		.title = rpl::single(u"Support identity"_q),
+		.keywords = { u"support"_q, u"identity"_q, u"agent"_q, u"suffix"_q },
+	});
+	builder.addButton({
+		.id = u"advanced/support_identity_value"_q,
+		.title = rpl::single(u"Employee identifier"_q),
+		.st = &st::settingsButtonNoIcon,
+		.label = Core::App().settings().supportAgentTagValue()
+			| rpl::map([](const QString &value) {
+				return value.isEmpty() ? u"Not set"_q : value;
+			}),
+		.onClick = [=] {
+			if (controller) {
+				OpenSupportAgentIdentityBox(controller);
+			}
+		},
+		.keywords = { u"support"_q, u"identity"_q, u"employee"_q },
+	});
+	builder.addSkip(st::settingsCheckboxesSkip);
+}
 
 void BuildDataStorageSection(SectionBuilder &builder) {
 	const auto controller = builder.controller();
@@ -1128,6 +1206,7 @@ const auto kMeta = BuildHelper({
 	BuildAutoDownloadSection(builder);
 	BuildWindowTitleSection(builder);
 	BuildSystemIntegrationSection(builder);
+	BuildSupportIdentitySection(builder);
 	BuildPerformanceSection(builder);
 	BuildSpellcheckerSection(builder);
 	if (autoUpdate) {

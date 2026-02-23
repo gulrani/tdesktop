@@ -218,6 +218,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::bytearraySize(_photoEditorBrush)
 		+ sizeof(qint32) * 3
 		+ Serialize::stringSize(_customDeviceModel.current())
+		+ Serialize::stringSize(_supportAgentTag.current())
 		+ sizeof(qint32) * 4
 		+ (_accountsOrder.size() * sizeof(quint64))
 		+ sizeof(qint32) * 7
@@ -344,6 +345,7 @@ QByteArray Settings::serialize() const {
 			<< qint32(SerializePlaybackSpeed(_voicePlaybackSpeed))
 			<< qint32(_closeBehavior)
 			<< _customDeviceModel.current()
+			<< _supportAgentTag.current()
 			<< qint32(_playerRepeatMode.current())
 			<< qint32(_playerOrderMode.current())
 			<< qint32(_macWarnBeforeQuit ? 1 : 0);
@@ -505,6 +507,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QByteArray photoEditorBrush = _photoEditorBrush;
 	qint32 closeBehavior = qint32(_closeBehavior);
 	QString customDeviceModel = _customDeviceModel.current();
+	QString supportAgentTag = _supportAgentTag.current();
 	qint32 playerRepeatMode = static_cast<qint32>(_playerRepeatMode.current());
 	qint32 playerOrderMode = static_cast<qint32>(_playerOrderMode.current());
 	qint32 macWarnBeforeQuit = _macWarnBeforeQuit ? 1 : 0;
@@ -706,6 +709,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> customDeviceModel;
+	}
+	if (!stream.atEnd()) {
+		stream >> supportAgentTag;
 	}
 	if (!stream.atEnd()) {
 		stream
@@ -1031,6 +1037,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	case CloseBehavior::Quit: _closeBehavior = uncheckedCloseBehavior; break;
 	}
 	_customDeviceModel = customDeviceModel;
+	_supportAgentTag = supportAgentTag;
 	_accountsOrder = accountsOrder;
 	const auto uncheckedPlayerRepeatMode = static_cast<Media::RepeatMode>(playerRepeatMode);
 	switch (uncheckedPlayerRepeatMode) {
