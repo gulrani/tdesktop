@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -96,12 +97,11 @@ void OpenSupportAgentIdentityBox(not_null<Window::SessionController*> controller
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(rpl::single(u"Support identity password"_q));
 		const auto password = box->addRow(
-			object_ptr<Ui::InputField>(
+			object_ptr<Ui::PasswordInput>(
 				box,
 				st::settingsDeviceName,
 				rpl::single(QString()),
 				QString()));
-		password->setEchoMode(QLineEdit::Password);
 		box->setFocusCallback([=] {
 			password->setFocusFast();
 		});
