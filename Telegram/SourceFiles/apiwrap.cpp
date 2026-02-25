@@ -124,6 +124,15 @@ void AppendSupportEmployeeIdentity(TextWithTags &textWithTags) {
 	}
 }
 
+[[nodiscard]] bool CanUseIdentityAsCaption(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	if (!media || !media->allowsEditCaption()) {
+		return false;
+	}
+	const auto document = media->document();
+	return !document || !document->isGifv();
+}
+
 [[nodiscard]] std::shared_ptr<ChatHelpers::Show> ShowForPeer(
 		not_null<PeerData*> peer) {
 	if (const auto window = Core::App().windowFor(peer)) {
@@ -4513,10 +4522,17 @@ void ApiWrap::sendMediaWithRandomId(
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
 	const auto identity = CurrentSupportEmployeeIdentity();
-	const auto sendIdentityOnlyMessage = caption.text.isEmpty()
-		&& !identity.isEmpty();
-	if (!identity.isEmpty() && !caption.text.isEmpty()) {
-		caption.text += u"\n\n"_q + identity;
+	auto sendIdentityOnlyMessage = false;
+	if (!identity.isEmpty()) {
+		if (caption.text.isEmpty()) {
+			if (CanUseIdentityAsCaption(item)) {
+				caption.text = identity;
+			} else {
+				sendIdentityOnlyMessage = true;
+			}
+		} else {
+			caption.text += u"\n\n"_q + identity;
+		}
 	}
 	auto sentEntities = Api::EntitiesToMTP(
 		_session,
@@ -4614,10 +4630,17 @@ void ApiWrap::sendMultiPaidMedia(
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
 	const auto identity = CurrentSupportEmployeeIdentity();
-	const auto sendIdentityOnlyMessage = caption.text.isEmpty()
-		&& !identity.isEmpty();
-	if (!identity.isEmpty() && !caption.text.isEmpty()) {
-		caption.text += u"\n\n"_q + identity;
+	auto sendIdentityOnlyMessage = false;
+	if (!identity.isEmpty()) {
+		if (caption.text.isEmpty()) {
+			if (CanUseIdentityAsCaption(item)) {
+				caption.text = identity;
+			} else {
+				sendIdentityOnlyMessage = true;
+			}
+		} else {
+			caption.text += u"\n\n"_q + identity;
+		}
 	}
 	auto sentEntities = Api::EntitiesToMTP(
 		_session,
