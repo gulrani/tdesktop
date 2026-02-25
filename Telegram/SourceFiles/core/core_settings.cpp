@@ -237,6 +237,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_captureDeviceId.current())
 		+ Serialize::stringSize(_callPlaybackDeviceId.current())
 		+ Serialize::stringSize(_callCaptureDeviceId.current())
+		+ Serialize::stringSize(_supportEmployeeIdentity)
 		+ Serialize::bytearraySize(ivPosition)
 		+ Serialize::stringSize(noWarningExtensions)
 		+ Serialize::stringSize(_customFontFamily)
@@ -390,6 +391,7 @@ QByteArray Settings::serialize() const {
 			<< _captureDeviceId.current()
 			<< _callPlaybackDeviceId.current()
 			<< _callCaptureDeviceId.current()
+			<< _supportEmployeeIdentity
 			<< ivPosition
 			<< noWarningExtensions
 			<< _customFontFamily
@@ -450,6 +452,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QString legacyCallCaptureDeviceId = _callCaptureDeviceId.current();
 	QString callPlaybackDeviceId = _callPlaybackDeviceId.current();
 	QString callCaptureDeviceId = _callCaptureDeviceId.current();
+	QString supportEmployeeIdentity = _supportEmployeeIdentity;
 	qint32 callOutputVolume = _callOutputVolume;
 	qint32 callInputVolume = _callInputVolume;
 	qint32 callAudioDuckingEnabled = _callAudioDuckingEnabled ? 1 : 0;
@@ -813,6 +816,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream
 			>> callPlaybackDeviceId
 			>> callCaptureDeviceId;
+	}
+	if (!stream.atEnd()) {
+		stream >> supportEmployeeIdentity;
 	} else {
 		const auto &defaultId = Webrtc::kDefaultDeviceId;
 		callPlaybackDeviceId = (legacyCallPlaybackDeviceId == defaultId)
@@ -934,6 +940,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_cameraDeviceId = cameraDeviceId;
 	_callPlaybackDeviceId = callPlaybackDeviceId;
 	_callCaptureDeviceId = callCaptureDeviceId;
+	_supportEmployeeIdentity = supportEmployeeIdentity;
 	_callOutputVolume = callOutputVolume;
 	_callInputVolume = callInputVolume;
 	_callAudioDuckingEnabled = (callAudioDuckingEnabled == 1);

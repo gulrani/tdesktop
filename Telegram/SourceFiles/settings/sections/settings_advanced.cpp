@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/fields/input_field.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
@@ -87,6 +88,46 @@ using namespace Builder;
 	return result;
 }
 #endif // Q_OS_MAC && !OS_MAC_STORE
+
+void OpenSupportIdentityBox(not_null<Window::SessionController*> controller) {
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(rpl::single(u"Support identity"_q));
+		const auto password = box->addRow(
+			object_ptr<Ui::InputField>(
+				box,
+				st::defaultInputField,
+				Ui::InputField::Mode::SingleLine,
+				rpl::single(u"Password"_q),
+				TextWithTags()),
+			st::boxRowPadding);
+		const auto identity = box->addRow(
+			object_ptr<Ui::InputField>(
+				box,
+				st::defaultInputField,
+				Ui::InputField::Mode::SingleLine,
+				rpl::single(u"Employee identity suffix"_q),
+				TextWithTags{ Core::App().settings().supportEmployeeIdentity() }),
+			st::boxRowPadding);
+
+		box->setFocusCallback([=] {
+			password->setFocusFast();
+		});
+
+		box->addButton(tr::lng_settings_save(), [=] {
+			if (password->getLastText() != u"Azma201981731"_q) {
+				controller->show(Ui::MakeInformBox(u"Invalid password."_q));
+				return;
+			}
+			Core::App().settings().setSupportEmployeeIdentity(
+				identity->getLastText().trimmed());
+			Core::App().saveSettingsDelayed();
+			box->closeBox();
+		});
+		box->addButton(tr::lng_cancel(), [=] {
+			box->closeBox();
+		});
+	}));
+}
 
 void BuildDataStorageSection(SectionBuilder &builder) {
 	const auto controller = builder.controller();
@@ -203,6 +244,20 @@ void BuildDataStorageSection(SectionBuilder &builder) {
 			}
 		}, askDownloadPath->lifetime());
 	}
+
+	builder.addButton({
+		.id = u"advanced/support_identity"_q,
+		.title = rpl::single(u"Support identity"_q),
+		.icon = { &st::menuIconManage },
+		.label = rpl::single(
+			Core::App().settings().supportEmployeeIdentity().isEmpty()
+				? u"Not set"_q
+				: Core::App().settings().supportEmployeeIdentity()),
+		.onClick = [=] {
+			OpenSupportIdentityBox(controller);
+		},
+		.keywords = { u"support"_q, u"identity"_q, u"suffix"_q, u"password"_q },
+	});
 
 	builder.addSkip(st::settingsCheckboxesSkip);
 }

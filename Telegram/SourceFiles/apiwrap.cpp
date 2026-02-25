@@ -107,6 +107,23 @@ using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
 
+[[nodiscard]] QString CurrentSupportEmployeeIdentity() {
+	const auto value = Core::App().settings().supportEmployeeIdentity().trimmed();
+	return value;
+}
+
+void AppendSupportEmployeeIdentity(TextWithTags &textWithTags) {
+	const auto identity = CurrentSupportEmployeeIdentity();
+	if (identity.isEmpty()) {
+		return;
+	}
+	if (textWithTags.text.isEmpty()) {
+		textWithTags.text = identity;
+	} else {
+		textWithTags.text += u"\n\n"_q + identity;
+	}
+}
+
 [[nodiscard]] std::shared_ptr<ChatHelpers::Show> ShowForPeer(
 		not_null<PeerData*> peer) {
 	if (const auto window = Core::App().windowFor(peer)) {
@@ -3969,6 +3986,7 @@ void ApiWrap::sendMessage(
 	const auto history = message.action.history;
 	const auto peer = history->peer;
 	auto &textWithTags = message.textWithTags;
+	AppendSupportEmployeeIdentity(textWithTags);
 
 	auto action = message.action;
 	action.generateLocal = true;
@@ -4494,6 +4512,12 @@ void ApiWrap::sendMediaWithRandomId(
 
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
+	const auto identity = CurrentSupportEmployeeIdentity();
+	const auto sendIdentityOnlyMessage = caption.text.isEmpty()
+		&& !identity.isEmpty();
+	if (!identity.isEmpty() && !caption.text.isEmpty()) {
+		caption.text += u"\n\n"_q + identity;
+	}
 	auto sentEntities = Api::EntitiesToMTP(
 		_session,
 		caption.entities,
@@ -4558,6 +4582,10 @@ void ApiWrap::sendMediaWithRandomId(
 		if (updateRecentStickers) {
 			requestRecentStickers(std::nullopt, true);
 		}
+		if (sendIdentityOnlyMessage) {
+			auto identityMessage = Api::MessageToSend(Api::SendAction(history, options));
+			sendMessage(std::move(identityMessage));
+		}
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		if (done) done(false);
 		sendMessageFail(error, peer, randomId, itemId);
@@ -4585,6 +4613,12 @@ void ApiWrap::sendMultiPaidMedia(
 
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
+	const auto identity = CurrentSupportEmployeeIdentity();
+	const auto sendIdentityOnlyMessage = caption.text.isEmpty()
+		&& !identity.isEmpty();
+	if (!identity.isEmpty() && !caption.text.isEmpty()) {
+		caption.text += u"\n\n"_q + identity;
+	}
 	auto sentEntities = Api::EntitiesToMTP(
 		_session,
 		caption.entities,
@@ -4651,6 +4685,10 @@ void ApiWrap::sendMultiPaidMedia(
 			}
 		}
 		if (done) done(true);
+		if (sendIdentityOnlyMessage) {
+			auto identityMessage = Api::MessageToSend(Api::SendAction(history, options));
+			sendMessage(std::move(identityMessage));
+		}
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		if (done) done(false);
 		sendMessageFail(error, peer, randomId, itemId);
