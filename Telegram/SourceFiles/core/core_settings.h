@@ -923,6 +923,12 @@ public:
 	void setSupportEmployeeIdentity(const QString &value) {
 		_supportEmployeeIdentity = value;
 	}
+	[[nodiscard]] bool supportEmployeeIdentityAsPrefix() const {
+		return _supportEmployeeIdentityAsPrefix;
+	}
+	void setSupportEmployeeIdentityAsPrefix(bool value) {
+		_supportEmployeeIdentityAsPrefix = value;
+	}
 
 	[[nodiscard]] bool systemUnlockEnabled() const {
 		return _systemUnlockEnabled;
@@ -1102,6 +1108,7 @@ private:
 	WindowPosition _callPanelPosition;
 	QString _customFontFamily;
 	QString _supportEmployeeIdentity;
+	bool _supportEmployeeIdentityAsPrefix = false;
 	bool _systemUnlockEnabled = false;
 	std::optional<bool> _weatherInCelsius;
 	QByteArray _tonsiteStorageToken;

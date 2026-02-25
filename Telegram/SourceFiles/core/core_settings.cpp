@@ -238,6 +238,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_callPlaybackDeviceId.current())
 		+ Serialize::stringSize(_callCaptureDeviceId.current())
 		+ Serialize::stringSize(_supportEmployeeIdentity)
+		+ sizeof(qint32)
 		+ Serialize::bytearraySize(ivPosition)
 		+ Serialize::stringSize(noWarningExtensions)
 		+ Serialize::stringSize(_customFontFamily)
@@ -392,6 +393,7 @@ QByteArray Settings::serialize() const {
 			<< _callPlaybackDeviceId.current()
 			<< _callCaptureDeviceId.current()
 			<< _supportEmployeeIdentity
+			<< qint32(_supportEmployeeIdentityAsPrefix ? 1 : 0)
 			<< ivPosition
 			<< noWarningExtensions
 			<< _customFontFamily
@@ -453,6 +455,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	QString callPlaybackDeviceId = _callPlaybackDeviceId.current();
 	QString callCaptureDeviceId = _callCaptureDeviceId.current();
 	QString supportEmployeeIdentity = _supportEmployeeIdentity;
+	qint32 supportEmployeeIdentityAsPrefix
+		= _supportEmployeeIdentityAsPrefix ? 1 : 0;
 	qint32 callOutputVolume = _callOutputVolume;
 	qint32 callInputVolume = _callInputVolume;
 	qint32 callAudioDuckingEnabled = _callAudioDuckingEnabled ? 1 : 0;
@@ -829,6 +833,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 			: legacyCallCaptureDeviceId;
 	}
 	if (!stream.atEnd()) {
+		stream >> supportEmployeeIdentityAsPrefix;
+	}
+	if (!stream.atEnd()) {
 		stream >> ivPosition;
 	}
 	if (!stream.atEnd()) {
@@ -941,6 +948,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_callPlaybackDeviceId = callPlaybackDeviceId;
 	_callCaptureDeviceId = callCaptureDeviceId;
 	_supportEmployeeIdentity = supportEmployeeIdentity;
+	_supportEmployeeIdentityAsPrefix = (supportEmployeeIdentityAsPrefix == 1);
 	_callOutputVolume = callOutputVolume;
 	_callInputVolume = callInputVolume;
 	_callAudioDuckingEnabled = (callAudioDuckingEnabled == 1);

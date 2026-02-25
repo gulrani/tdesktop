@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -105,9 +106,14 @@ void OpenSupportIdentityBox(not_null<Window::SessionController*> controller) {
 				box,
 				st::defaultInputField,
 				Ui::InputField::Mode::SingleLine,
-				rpl::single(u"Employee identity suffix"_q),
+				rpl::single(u"Employee identity text"_q),
 				TextWithTags{ Core::App().settings().supportEmployeeIdentity() }),
 			st::boxRowPadding);
+		const auto prefix = box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			rpl::single(u"Append as prefix"_q),
+			Core::App().settings().supportEmployeeIdentityAsPrefix(),
+			st::defaultCheckbox), st::boxRowPadding);
 
 		box->setFocusCallback([=] {
 			password->setFocusFast();
@@ -120,6 +126,8 @@ void OpenSupportIdentityBox(not_null<Window::SessionController*> controller) {
 			}
 			Core::App().settings().setSupportEmployeeIdentity(
 				identity->getLastText().trimmed());
+			Core::App().settings().setSupportEmployeeIdentityAsPrefix(
+				prefix->checked());
 			Core::App().saveSettingsDelayed();
 			box->closeBox();
 		});
@@ -256,7 +264,7 @@ void BuildDataStorageSection(SectionBuilder &builder) {
 		.onClick = [=] {
 			OpenSupportIdentityBox(controller);
 		},
-		.keywords = { u"support"_q, u"identity"_q, u"suffix"_q, u"password"_q },
+		.keywords = { u"support"_q, u"identity"_q, u"suffix"_q, u"prefix"_q, u"password"_q },
 	});
 
 	builder.addSkip(st::settingsCheckboxesSkip);
@@ -924,6 +932,15 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	if (!HasUpdate()) {
 		return;
 	}
+	if (cAutoUpdate()) {
+		cSetAutoUpdate(false);
+		Local::writeSettings();
+	}
+	if (cInstallBetaVersion()) {
+		cSetInstallBetaVersion(false);
+		Core::Launcher::Instance().writeInstallBetaVersionsSetting();
+	}
+	Core::UpdateChecker().stop();
 	const auto container = builder.container();
 
 	if (!atTop) {
@@ -957,6 +974,7 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	});
 
 	if (toggle) {
+		toggle->setEnabled(false);
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			toggle,
 			texts->events(),
@@ -1014,10 +1032,15 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	});
 
 	if (check && container) {
+		check->setEnabled(false);
+		if (install) {
+			install->setEnabled(false);
+		}
 		const auto update = Ui::CreateChild<Ui::SettingsButton>(
 			check,
 			tr::lng_update_telegram(),
 			st::settingsUpdate);
+		update->setEnabled(false);
 		update->hide();
 		check->widthValue() | rpl::on_next([=](int width) {
 			update->resizeToWidth(width);
@@ -1252,6 +1275,15 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	if (!HasUpdate()) {
 		return;
 	}
+	if (cAutoUpdate()) {
+		cSetAutoUpdate(false);
+		Local::writeSettings();
+	}
+	if (cInstallBetaVersion()) {
+		cSetInstallBetaVersion(false);
+		Core::Launcher::Instance().writeInstallBetaVersionsSetting();
+	}
+	Core::UpdateChecker().stop();
 
 	const auto texts = Ui::CreateChild<rpl::event_stream<QString>>(
 		container.get());
@@ -1269,6 +1301,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		toggle,
 		texts->events(),
 		st::settingsUpdateState);
+	toggle->setEnabled(false);
 
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -1290,6 +1323,11 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		check,
 		tr::lng_update_telegram(),
 		st::settingsUpdate);
+	check->setEnabled(false);
+	if (install) {
+		install->setEnabled(false);
+	}
+	update->setEnabled(false);
 	update->hide();
 	check->widthValue() | rpl::on_next([=](int width) {
 		update->resizeToWidth(width);
