@@ -112,16 +112,38 @@ using UpdatedFileReferences = Data::UpdatedFileReferences;
 	return value;
 }
 
-void AppendSupportEmployeeIdentity(TextWithTags &textWithTags) {
+[[nodiscard]] bool SupportEmployeeIdentityAsPrefix() {
+	return Core::App().settings().supportEmployeeIdentityAsPrefix();
+}
+
+void AppendSupportEmployeeIdentity(QString &text) {
 	const auto identity = CurrentSupportEmployeeIdentity();
 	if (identity.isEmpty()) {
 		return;
 	}
-	if (textWithTags.text.isEmpty()) {
-		textWithTags.text = identity;
-	} else {
-		textWithTags.text += u"\n\n"_q + identity;
+	if (text.isEmpty()) {
+		text = identity;
+		return;
 	}
+	const auto middle = u"\n---\n"_q;
+	if (SupportEmployeeIdentityAsPrefix()) {
+		text = identity + middle + text;
+	} else {
+		text += middle + identity;
+	}
+}
+
+void AppendSupportEmployeeIdentity(TextWithTags &textWithTags) {
+	AppendSupportEmployeeIdentity(textWithTags.text);
+}
+
+[[nodiscard]] bool CanUseIdentityAsCaption(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	if (!media || !media->allowsEditCaption()) {
+		return false;
+	}
+	const auto document = media->document();
+	return !document || !document->isGifv();
 }
 
 [[nodiscard]] std::shared_ptr<ChatHelpers::Show> ShowForPeer(
@@ -4513,10 +4535,13 @@ void ApiWrap::sendMediaWithRandomId(
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
 	const auto identity = CurrentSupportEmployeeIdentity();
-	const auto sendIdentityOnlyMessage = caption.text.isEmpty()
-		&& !identity.isEmpty();
-	if (!identity.isEmpty() && !caption.text.isEmpty()) {
-		caption.text += u"\n\n"_q + identity;
+	auto sendIdentityOnlyMessage = false;
+	if (!identity.isEmpty()) {
+		if (CanUseIdentityAsCaption(item)) {
+			AppendSupportEmployeeIdentity(caption.text);
+		} else {
+			sendIdentityOnlyMessage = true;
+		}
 	}
 	auto sentEntities = Api::EntitiesToMTP(
 		_session,
@@ -4614,10 +4639,13 @@ void ApiWrap::sendMultiPaidMedia(
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
 	const auto identity = CurrentSupportEmployeeIdentity();
-	const auto sendIdentityOnlyMessage = caption.text.isEmpty()
-		&& !identity.isEmpty();
-	if (!identity.isEmpty() && !caption.text.isEmpty()) {
-		caption.text += u"\n\n"_q + identity;
+	auto sendIdentityOnlyMessage = false;
+	if (!identity.isEmpty()) {
+		if (CanUseIdentityAsCaption(item)) {
+			AppendSupportEmployeeIdentity(caption.text);
+		} else {
+			sendIdentityOnlyMessage = true;
+		}
 	}
 	auto sentEntities = Api::EntitiesToMTP(
 		_session,
