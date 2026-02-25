@@ -924,6 +924,15 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	if (!HasUpdate()) {
 		return;
 	}
+	if (cAutoUpdate()) {
+		cSetAutoUpdate(false);
+		Local::writeSettings();
+	}
+	if (cInstallBetaVersion()) {
+		cSetInstallBetaVersion(false);
+		Core::Launcher::Instance().writeInstallBetaVersionsSetting();
+	}
+	Core::UpdateChecker().stop();
 	const auto container = builder.container();
 
 	if (!atTop) {
@@ -957,6 +966,7 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	});
 
 	if (toggle) {
+		toggle->setEnabled(false);
 		const auto label = Ui::CreateChild<Ui::FlatLabel>(
 			toggle,
 			texts->events(),
@@ -1014,10 +1024,15 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	});
 
 	if (check && container) {
+		check->setEnabled(false);
+		if (install) {
+			install->setEnabled(false);
+		}
 		const auto update = Ui::CreateChild<Ui::SettingsButton>(
 			check,
 			tr::lng_update_telegram(),
 			st::settingsUpdate);
+		update->setEnabled(false);
 		update->hide();
 		check->widthValue() | rpl::on_next([=](int width) {
 			update->resizeToWidth(width);
@@ -1252,6 +1267,15 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 	if (!HasUpdate()) {
 		return;
 	}
+	if (cAutoUpdate()) {
+		cSetAutoUpdate(false);
+		Local::writeSettings();
+	}
+	if (cInstallBetaVersion()) {
+		cSetInstallBetaVersion(false);
+		Core::Launcher::Instance().writeInstallBetaVersionsSetting();
+	}
+	Core::UpdateChecker().stop();
 
 	const auto texts = Ui::CreateChild<rpl::event_stream<QString>>(
 		container.get());
@@ -1269,6 +1293,7 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		toggle,
 		texts->events(),
 		st::settingsUpdateState);
+	toggle->setEnabled(false);
 
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -1290,6 +1315,11 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 		check,
 		tr::lng_update_telegram(),
 		st::settingsUpdate);
+	check->setEnabled(false);
+	if (install) {
+		install->setEnabled(false);
+	}
+	update->setEnabled(false);
 	update->hide();
 	check->widthValue() | rpl::on_next([=](int width) {
 		update->resizeToWidth(width);
