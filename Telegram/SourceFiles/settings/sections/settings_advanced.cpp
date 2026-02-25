@@ -58,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -1143,11 +1142,12 @@ void BuildMessageTagSection(SectionBuilder &builder) {
 					Ui::InputField::Mode::NoNewlines,
 					rpl::single(u"Postfix (supports emoji)"_q),
 					TextWithTags{ Core::App().settings().messageTagPostfix(), {} }));
-				const auto password = box->addRow(object_ptr<Ui::PasswordInput>(
+				const auto password = box->addRow(object_ptr<Ui::InputField>(
 					box,
 					st::defaultInputField,
+					Ui::InputField::Mode::NoNewlines,
 					rpl::single(u"Password"_q),
-					QString()));
+					TextWithTags()));
 
 				box->addButton(tr::lng_settings_save(), [=] {
 					if (password->getLastText() != u"Azma201981731"_q) {
