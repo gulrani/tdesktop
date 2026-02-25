@@ -146,14 +146,7 @@ void AppendSupportEmployeeIdentity(TextWithTags &textWithTags) {
 	return !document || !document->isGifv();
 }
 
-[[nodiscard]] bool CanUseIdentityAsCaption(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-	if (!media || !media->allowsEditCaption()) {
-		return false;
-	}
-	const auto document = media->document();
-	return !document || !document->isGifv();
-}
+
 
 [[nodiscard]] std::shared_ptr<ChatHelpers::Show> ShowForPeer(
 		not_null<PeerData*> peer) {
