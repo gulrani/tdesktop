@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h" // NewMessageFlags.
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
+#include "core/application.h"
 #include "ui/text/text_entity.h" // TextWithEntities.
 #include "ui/item_text_options.h" // Ui::ItemTextOptions.
 #include "main/main_session.h"
@@ -36,6 +37,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 namespace {
+
+[[nodiscard]] QString BuildTaggedMessage(
+		const QString &text,
+		const QString &prefix,
+		const QString &postfix) {
+	if (prefix.isEmpty() && postfix.isEmpty()) {
+		return text;
+	}
+	if (text.isEmpty()) {
+		if (prefix.isEmpty()) {
+			return postfix;
+		} else if (postfix.isEmpty()) {
+			return prefix;
+		}
+		return prefix + u"\n\n"_q + postfix;
+	}
+
+	auto result = QString();
+	if (!prefix.isEmpty()) {
+		result += prefix + u"\n---------------\n\n"_q;
+	}
+	result += text;
+	if (!postfix.isEmpty()) {
+		result += u"\n\n---------------\n"_q + postfix;
+	}
+	return result;
+}
 
 void InnerFillMessagePostFlags(
 		const SendOptions &options,
@@ -160,6 +188,7 @@ void SendExistingMedia(
 		Fn<MTPInputMedia()> inputMedia,
 		Data::FileOrigin origin,
 		std::optional<MsgId> localMessageId) {
+	message.textWithTags = AddMessageTag(std::move(message.textWithTags));
 	const auto history = message.action.history;
 	const auto peer = history->peer;
 	const auto session = &history->session();
@@ -297,10 +326,30 @@ void SendExistingMedia(
 
 } // namespace
 
+TextWithTags AddMessageTag(TextWithTags text) {
+	const auto &settings = Core::App().settings();
+	const auto prefix = settings.messageTagPrefix().trimmed();
+	const auto postfix = settings.messageTagPostfix().trimmed();
+	if (prefix.isEmpty() && postfix.isEmpty()) {
+		return text;
+	}
+	text.text = BuildTaggedMessage(text.text, prefix, postfix);
+	text.tags.clear();
+	return text;
+}
+
+QString MessageTagOnlyText() {
+	const auto &settings = Core::App().settings();
+	const auto prefix = settings.messageTagPrefix().trimmed();
+	const auto postfix = settings.messageTagPostfix().trimmed();
+	return BuildTaggedMessage(QString(), prefix, postfix);
+}
+
 void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
+	const auto action = message.action;
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(message.action.options.mediaSpoiler
@@ -318,6 +367,11 @@ void SendExistingDocument(
 		inputMedia,
 		document->stickerOrGifOrigin(),
 		std::move(localMessageId));
+	if ((document->sticker() || document->isGifv()) && !MessageTagOnlyText().isEmpty()) {
+		auto tagged = MessageToSend(action);
+		tagged.textWithTags = TextWithTags();
+		action.history->session().api().sendMessage(std::move(tagged));
+	}
 
 	if (document->sticker()) {
 		document->owner().stickers().incrementSticker(document);
@@ -570,9 +624,10 @@ void SendConfirmedFile(
 	action.replaceMediaOf = file->to.replaceMediaOf;
 	session->api().sendAction(action);
 
+	const auto taggedCaption = AddMessageTag(file->caption);
 	auto caption = TextWithEntities{
-		file->caption.text,
-		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
+		taggedCaption.text,
+		TextUtilities::ConvertTextTagsToEntities(taggedCaption.tags)
 	};
 	const auto prepareFlags = Ui::ItemTextOptions(
 		history,

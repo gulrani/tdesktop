@@ -685,11 +685,10 @@ bool ReadSetting(
 		qint32 v;
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
+		Q_UNUSED(v);
 
-		cSetAutoUpdate(v == 1);
-		if (!Core::UpdaterDisabled() && !cAutoUpdate()) {
-			Core::UpdateChecker().stop();
-		}
+		cSetAutoUpdate(false);
+		Core::UpdateChecker().stop();
 	} break;
 
 	case dbiLastUpdateCheck: {

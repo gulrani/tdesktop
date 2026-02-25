@@ -245,7 +245,9 @@ QByteArray Settings::serialize() const {
 		+ sizeof(qint32) * 8
 		+ sizeof(ushort)
 		+ sizeof(qint32) // _notificationsDisplayChecksum
-		+ Serialize::bytearraySize(callPanelPosition);
+		+ Serialize::bytearraySize(callPanelPosition)
+		+ Serialize::stringSize(_messageTagPrefix)
+		+ Serialize::stringSize(_messageTagPostfix);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -410,7 +412,9 @@ QByteArray Settings::serialize() const {
 			<< qint32(_quickDialogAction)
 			<< _notificationsVolume
 			<< _notificationsDisplayChecksum
-			<< callPanelPosition;
+			<< callPanelPosition
+			<< _messageTagPrefix
+			<< _messageTagPostfix;
 	}
 
 	Ensures(result.size() == size);
@@ -543,6 +547,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	quint32 chatFiltersHorizontal = _chatFiltersHorizontal.current() ? 1 : 0;
 	quint32 quickDialogAction = quint32(_quickDialogAction);
 	ushort notificationsVolume = _notificationsVolume;
+	QString messageTagPrefix = _messageTagPrefix;
+	QString messageTagPostfix = _messageTagPostfix;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -883,6 +889,12 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> callPanelPosition;
 	}
+	if (!stream.atEnd()) {
+		stream >> messageTagPrefix;
+	}
+	if (!stream.atEnd()) {
+		stream >> messageTagPostfix;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -1110,6 +1122,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	_chatFiltersHorizontal = (chatFiltersHorizontal == 1);
 	_quickDialogAction = Dialogs::Ui::QuickDialogAction(quickDialogAction);
 	_notificationsVolume = notificationsVolume;
+	_messageTagPrefix = messageTagPrefix;
+	_messageTagPostfix = messageTagPostfix;
 }
 
 QString Settings::getSoundPath(const QString &key) const {
