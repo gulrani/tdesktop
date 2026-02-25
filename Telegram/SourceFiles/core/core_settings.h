@@ -917,6 +917,13 @@ public:
 		_customFontFamily = value;
 	}
 
+	[[nodiscard]] QString supportEmployeeIdentity() const {
+		return _supportEmployeeIdentity;
+	}
+	void setSupportEmployeeIdentity(const QString &value) {
+		_supportEmployeeIdentity = value;
+	}
+
 	[[nodiscard]] bool systemUnlockEnabled() const {
 		return _systemUnlockEnabled;
 	}
@@ -1094,6 +1101,7 @@ private:
 	WindowPosition _ivPosition;
 	WindowPosition _callPanelPosition;
 	QString _customFontFamily;
+	QString _supportEmployeeIdentity;
 	bool _systemUnlockEnabled = false;
 	std::optional<bool> _weatherInCelsius;
 	QByteArray _tonsiteStorageToken;
@@ -1122,4 +1130,3 @@ private:
 };
 
 } // namespace Core
-
