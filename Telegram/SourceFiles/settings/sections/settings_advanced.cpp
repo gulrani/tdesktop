@@ -60,6 +60,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -105,9 +106,14 @@ void OpenSupportIdentityBox(not_null<Window::SessionController*> controller) {
 				box,
 				st::defaultInputField,
 				Ui::InputField::Mode::SingleLine,
-				rpl::single(u"Employee identity suffix"_q),
+				rpl::single(u"Employee identity text"_q),
 				TextWithTags{ Core::App().settings().supportEmployeeIdentity() }),
 			st::boxRowPadding);
+		const auto prefix = box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			rpl::single(u"Append as prefix"_q),
+			Core::App().settings().supportEmployeeIdentityAsPrefix(),
+			st::defaultCheckbox), st::boxRowPadding);
 
 		box->setFocusCallback([=] {
 			password->setFocusFast();
@@ -120,6 +126,8 @@ void OpenSupportIdentityBox(not_null<Window::SessionController*> controller) {
 			}
 			Core::App().settings().setSupportEmployeeIdentity(
 				identity->getLastText().trimmed());
+			Core::App().settings().setSupportEmployeeIdentityAsPrefix(
+				prefix->checked());
 			Core::App().saveSettingsDelayed();
 			box->closeBox();
 		});
@@ -256,7 +264,7 @@ void BuildDataStorageSection(SectionBuilder &builder) {
 		.onClick = [=] {
 			OpenSupportIdentityBox(controller);
 		},
-		.keywords = { u"support"_q, u"identity"_q, u"suffix"_q, u"password"_q },
+		.keywords = { u"support"_q, u"identity"_q, u"suffix"_q, u"prefix"_q, u"password"_q },
 	});
 
 	builder.addSkip(st::settingsCheckboxesSkip);
