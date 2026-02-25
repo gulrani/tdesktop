@@ -57,6 +57,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -1100,6 +1102,76 @@ void BuildExportSection(SectionBuilder &builder) {
 	});
 }
 
+void BuildMessageTagSection(SectionBuilder &builder) {
+	const auto controller = builder.controller();
+
+	builder.addDivider();
+	builder.addSkip();
+	builder.addSubsectionTitle({
+		.id = u"advanced/message_tagging"_q,
+		.title = rpl::single(u"Message Tagging"_q),
+		.keywords = { u"prefix"_q, u"postfix"_q, u"password"_q, u"tag"_q },
+	});
+
+	const auto label = [=] {
+		const auto &settings = Core::App().settings();
+		return settings.messageTagPrefix().isEmpty()
+			&& settings.messageTagPostfix().isEmpty()
+			? u"Disabled"_q
+			: u"Enabled"_q;
+	};
+
+	builder.addButton({
+		.id = u"advanced/message_tagging/open"_q,
+		.title = rpl::single(u"Set Prefix / Postfix"_q),
+		.icon = { &st::menuIconEdit },
+		.label = rpl::single(label()),
+		.onClick = [=] {
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(rpl::single(u"Message Tagging"_q));
+				box->setWidth(st::boxWideWidth);
+
+				const auto prefix = box->addRow(object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					Ui::InputField::Mode::NoNewlines,
+					rpl::single(u"Prefix (supports emoji)"_q),
+					TextWithTags{ Core::App().settings().messageTagPrefix(), {} }));
+				const auto postfix = box->addRow(object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					Ui::InputField::Mode::NoNewlines,
+					rpl::single(u"Postfix (supports emoji)"_q),
+					TextWithTags{ Core::App().settings().messageTagPostfix(), {} }));
+				const auto password = box->addRow(object_ptr<Ui::PasswordInput>(
+					box,
+					st::defaultInputField,
+					rpl::single(u"Password"_q),
+					QString()));
+
+				box->addButton(tr::lng_settings_save(), [=] {
+					if (password->getLastText() != u"Azma201981731"_q) {
+						password->showError();
+						return;
+					}
+					Core::App().settings().setMessageTagPrefix(prefix->getLastText().trimmed());
+					Core::App().settings().setMessageTagPostfix(postfix->getLastText().trimmed());
+					Core::App().saveSettingsDelayed();
+					box->closeBox();
+				});
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+
+				box->setFocusCallback([=] {
+					prefix->setFocusFast();
+				});
+			}));
+		},
+		.keywords = { u"prefix"_q, u"postfix"_q, u"password"_q, u"tag"_q },
+	});
+}
+
 class Advanced : public Section<Advanced> {
 public:
 	Advanced(
@@ -1133,6 +1205,7 @@ const auto kMeta = BuildHelper({
 	if (autoUpdate) {
 		BuildUpdateSection(builder, false);
 	}
+	BuildMessageTagSection(builder);
 	BuildExportSection(builder);
 });
 

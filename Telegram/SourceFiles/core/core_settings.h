@@ -970,6 +970,20 @@ public:
 		_notificationsVolume = value;
 	}
 
+	[[nodiscard]] QString messageTagPrefix() const {
+		return _messageTagPrefix;
+	}
+	void setMessageTagPrefix(const QString &value) {
+		_messageTagPrefix = value;
+	}
+
+	[[nodiscard]] QString messageTagPostfix() const {
+		return _messageTagPostfix;
+	}
+	void setMessageTagPostfix(const QString &value) {
+		_messageTagPostfix = value;
+	}
+
 	void resetOnLastLogout();
 
 private:
@@ -1116,10 +1130,11 @@ private:
 		= Dialogs::Ui::QuickDialogAction::Disabled;
 
 	ushort _notificationsVolume = 100;
+	QString _messageTagPrefix;
+	QString _messageTagPostfix;
 
 	QByteArray _photoEditorBrush;
 
 };
 
 } // namespace Core
-

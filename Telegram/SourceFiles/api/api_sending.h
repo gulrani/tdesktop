@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class PhotoData;
 class DocumentData;
+class QString;
 struct FilePrepareResult;
+struct TextWithTags;
 
 namespace Data {
 struct InputVenue;
@@ -24,6 +26,9 @@ namespace Api {
 
 struct MessageToSend;
 struct SendAction;
+
+[[nodiscard]] TextWithTags AddMessageTag(TextWithTags text);
+[[nodiscard]] QString MessageTagOnlyText();
 
 void SendExistingDocument(
 	MessageToSend &&message,

@@ -3814,6 +3814,7 @@ void ApiWrap::sendFiles(
 		TextWithTags &&caption,
 		std::shared_ptr<SendingAlbum> album,
 		const SendAction &action) {
+	caption = Api::AddMessageTag(std::move(caption));
 	const auto haveCaption = !caption.text.isEmpty();
 	if (haveCaption
 		&& !list.canAddCaption(
@@ -3968,6 +3969,7 @@ void ApiWrap::sendMessage(
 		std::optional<MsgId> localMessageId) {
 	const auto history = message.action.history;
 	const auto peer = history->peer;
+	message.textWithTags = Api::AddMessageTag(std::move(message.textWithTags));
 	auto &textWithTags = message.textWithTags;
 
 	auto action = message.action;
