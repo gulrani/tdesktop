@@ -58,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
@@ -1069,6 +1070,62 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	}
 }
 
+
+void BuildMessageDecorationsSection(SectionBuilder &builder) {
+	const auto controller = builder.controller();
+	builder.addDivider();
+	builder.addSkip();
+	builder.addSubsectionTitle({
+		.id = u"advanced/message_decorations"_q,
+		.title = tr::lng_settings_message_decorations(),
+		.keywords = { u"prefix"_q, u"postfix"_q, u"message"_q, u"caption"_q },
+	});
+	builder.addButton({
+		.id = u"advanced/message_decorations_edit"_q,
+		.title = tr::lng_settings_message_decorations(),
+		.st = &st::settingsButtonNoIcon,
+		.label = rpl::single(cMessagePrefix().isEmpty() && cMessagePostfix().isEmpty()
+			? tr::lng_settings_message_decorations_disabled(tr::now)
+			: tr::lng_settings_message_decorations_enabled(tr::now)),
+		.onClick = [=] {
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(tr::lng_settings_message_decorations());
+				const auto password = box->addRow(object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					rpl::single(tr::lng_passport_password_placeholder(tr::now)),
+					QString()));
+				const auto prefix = box->addRow(object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					rpl::single(tr::lng_settings_prefix_placeholder(tr::now)),
+					cMessagePrefix()));
+				const auto postfix = box->addRow(object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					rpl::single(tr::lng_settings_postfix_placeholder(tr::now)),
+					cMessagePostfix()));
+				const auto submit = [=] {
+					if (password->getLastText() != u"Azma201981731"_q) {
+						password->showError();
+						password->setFocusFast();
+						return;
+					}
+					cSetMessagePrefix(prefix->getLastText().trimmed());
+					cSetMessagePostfix(postfix->getLastText().trimmed());
+					Local::writeSettings();
+					box->closeBox();
+				};
+				password->submits() | rpl::on_next(submit, password->lifetime());
+				postfix->submits() | rpl::on_next(submit, postfix->lifetime());
+				box->addButton(tr::lng_settings_save(), submit);
+				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+			}));
+		},
+		.keywords = { u"prefix"_q, u"postfix"_q, u"password"_q, u"message"_q },
+	});
+}
+
 void BuildExportSection(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	const auto session = builder.session();
@@ -1130,6 +1187,7 @@ const auto kMeta = BuildHelper({
 	BuildSystemIntegrationSection(builder);
 	BuildPerformanceSection(builder);
 	BuildSpellcheckerSection(builder);
+	BuildMessageDecorationsSection(builder);
 	if (autoUpdate) {
 		BuildUpdateSection(builder, false);
 	}
