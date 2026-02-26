@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/item_text_options.h" // Ui::ItemTextOptions.
 #include "main/main_session.h"
 #include "main/main_app_config.h"
+#include "settings.h"
 #include "storage/localimageloader.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
@@ -36,6 +37,71 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 namespace {
+
+
+[[nodiscard]] TextWithTags DecorateTags(TextWithTags value) {
+	const auto prefix = cMessagePrefix().trimmed();
+	const auto postfix = cMessagePostfix().trimmed();
+	if (prefix.isEmpty() && postfix.isEmpty()) {
+		return value;
+	}
+	const auto body = value.text.trimmed();
+	auto result = QString();
+	if (body.isEmpty()) {
+		if (!prefix.isEmpty()) {
+			result += prefix;
+		}
+		if (!postfix.isEmpty()) {
+			if (!result.isEmpty()) {
+				result += u"\n\n"_q;
+			}
+			result += postfix;
+		}
+	} else {
+		if (!prefix.isEmpty()) {
+			result += prefix + u"\n---------------\n\n"_q;
+		}
+		result += body;
+		if (!postfix.isEmpty()) {
+			result += u"\n\n---------------\n\n"_q + postfix;
+		}
+	}
+	value.text = result;
+	value.tags.clear();
+	return value;
+}
+
+[[nodiscard]] TextWithEntities DecorateEntities(TextWithEntities value) {
+	const auto prefix = cMessagePrefix().trimmed();
+	const auto postfix = cMessagePostfix().trimmed();
+	if (prefix.isEmpty() && postfix.isEmpty()) {
+		return value;
+	}
+	const auto body = value.text.trimmed();
+	auto result = QString();
+	if (body.isEmpty()) {
+		if (!prefix.isEmpty()) {
+			result += prefix;
+		}
+		if (!postfix.isEmpty()) {
+			if (!result.isEmpty()) {
+				result += u"\n\n"_q;
+			}
+			result += postfix;
+		}
+	} else {
+		if (!prefix.isEmpty()) {
+			result += prefix + u"\n---------------\n\n"_q;
+		}
+		result += body;
+		if (!postfix.isEmpty()) {
+			result += u"\n\n---------------\n\n"_q + postfix;
+		}
+	}
+	value.text = result;
+	value.entities.clear();
+	return value;
+}
 
 void InnerFillMessagePostFlags(
 		const SendOptions &options,
@@ -196,6 +262,7 @@ void SendExistingMedia(
 		message.textWithTags.text,
 		TextUtilities::ConvertTextTagsToEntities(message.textWithTags.tags)
 	};
+	caption = DecorateEntities(std::move(caption));
 	TextUtilities::Trim(caption);
 	auto sentEntities = EntitiesToMTP(
 		session,
@@ -301,6 +368,8 @@ void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
+	const auto action = message.action;
+	const auto history = action.history;
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(message.action.options.mediaSpoiler
@@ -312,6 +381,8 @@ void SendExistingDocument(
 			MTPint(), // video_timestamp
 			MTPstring()); // query
 	};
+	const auto tags = DecorateTags(TextWithTags());
+	const auto hasDecorations = !tags.text.isEmpty();
 	SendExistingMedia(
 		std::move(message),
 		document,
@@ -319,6 +390,13 @@ void SendExistingDocument(
 		document->stickerOrGifOrigin(),
 		std::move(localMessageId));
 
+	if ((document->sticker() || document->isGifv()) && hasDecorations) {
+		auto followup = MessageToSend(action);
+		followup.action.replyTo = action.replyTo;
+		followup.action.clearDraft = false;
+		followup.textWithTags = tags;
+		history->session().api().sendMessage(std::move(followup));
+	}
 	if (document->sticker()) {
 		document->owner().stickers().incrementSticker(document);
 	}
@@ -574,6 +652,7 @@ void SendConfirmedFile(
 		file->caption.text,
 		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
 	};
+	caption = DecorateEntities(std::move(caption));
 	const auto prepareFlags = Ui::ItemTextOptions(
 		history,
 		session->user()).flags;
