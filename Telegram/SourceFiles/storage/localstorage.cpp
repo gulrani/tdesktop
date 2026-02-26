@@ -464,6 +464,8 @@ void writeSettings() {
 	size += sizeof(quint32) + Serialize::bytearraySize(configSerialized);
 	size += sizeof(quint32) + Serialize::bytearraySize(applicationSettings);
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
+	size += sizeof(quint32) + Serialize::stringSize(cMessagePrefix());
+	size += sizeof(quint32) + Serialize::stringSize(cMessagePostfix());
 
 	// Theme keys and night mode.
 	size += sizeof(quint32) + sizeof(quint64) * 2 + sizeof(quint32);
@@ -486,6 +488,8 @@ void writeSettings() {
 	data.stream << quint32(dbiFallbackProductionConfig) << configSerialized;
 	data.stream << quint32(dbiApplicationSettings) << applicationSettings;
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
+	data.stream << quint32(dbiMessagePrefix) << cMessagePrefix();
+	data.stream << quint32(dbiMessagePostfix) << cMessagePostfix();
 	data.stream << quint32(dbiPowerSaving) << qint32(powerSaving);
 
 	data.stream
