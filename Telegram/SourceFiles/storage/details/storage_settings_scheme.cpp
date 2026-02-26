@@ -700,6 +700,22 @@ bool ReadSetting(
 		cSetLastUpdateCheck(v);
 	} break;
 
+	case dbiMessagePrefix: {
+		QString v;
+		stream >> v;
+		if (!CheckStreamStatus(stream)) return false;
+
+		cSetMessagePrefix(v);
+	} break;
+
+	case dbiMessagePostfix: {
+		QString v;
+		stream >> v;
+		if (!CheckStreamStatus(stream)) return false;
+
+		cSetMessagePostfix(v);
+	} break;
+
 	case dbiScaleOld: {
 		qint32 v;
 		stream >> v;
