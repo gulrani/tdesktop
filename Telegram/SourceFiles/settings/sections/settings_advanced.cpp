@@ -59,7 +59,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/fields/password_input.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
@@ -1091,10 +1090,11 @@ void BuildMessageDecorationsSection(SectionBuilder &builder) {
 		.onClick = [=] {
 			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 				box->setTitle(tr::lng_settings_message_decorations());
-				const auto password = box->addRow(object_ptr<Ui::PasswordInput>(
+				const auto password = box->addRow(object_ptr<Ui::InputField>(
 					box,
 					st::defaultInputField,
-					tr::lng_passport_password_placeholder()));
+					rpl::single(tr::lng_passport_password_placeholder(tr::now)),
+					QString()));
 				const auto prefix = box->addRow(object_ptr<Ui::InputField>(
 					box,
 					st::defaultInputField,
@@ -1106,7 +1106,7 @@ void BuildMessageDecorationsSection(SectionBuilder &builder) {
 					rpl::single(tr::lng_settings_postfix_placeholder(tr::now)),
 					cMessagePostfix()));
 				const auto submit = [=] {
-					if (password->text() != u"Azma201981731"_q) {
+					if (password->getLastText() != u"Azma201981731"_q) {
 						password->showError();
 						password->setFocusFast();
 						return;
