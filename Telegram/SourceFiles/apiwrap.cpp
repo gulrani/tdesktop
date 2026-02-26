@@ -3969,6 +3969,7 @@ void ApiWrap::sendMessage(
 	const auto history = message.action.history;
 	const auto peer = history->peer;
 	auto &textWithTags = message.textWithTags;
+	Api::ApplyMessageAffixes(textWithTags);
 
 	auto action = message.action;
 	action.generateLocal = true;
