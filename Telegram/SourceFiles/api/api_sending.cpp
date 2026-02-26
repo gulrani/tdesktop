@@ -39,6 +39,10 @@ namespace Api {
 namespace {
 
 
+// Formatting contract for outgoing captions and helper messages:
+// - Non-empty body: prefix + divider + empty line + body +
+//   empty line + divider + postfix (postfix starts right after divider line).
+// - Empty body: only prefix/postfix separated by one empty line.
 [[nodiscard]] TextWithTags DecorateTags(TextWithTags value) {
 	const auto prefix = cMessagePrefix().trimmed();
 	const auto postfix = cMessagePostfix().trimmed();
@@ -63,7 +67,7 @@ namespace {
 		}
 		result += body;
 		if (!postfix.isEmpty()) {
-			result += u"\n\n---------------\n\n"_q + postfix;
+			result += u"\n\n---------------\n"_q + postfix;
 		}
 	}
 	value.text = result;
@@ -71,6 +75,7 @@ namespace {
 	return value;
 }
 
+// Keep entity-aware formatting exactly in sync with DecorateTags().
 [[nodiscard]] TextWithEntities DecorateEntities(TextWithEntities value) {
 	const auto prefix = cMessagePrefix().trimmed();
 	const auto postfix = cMessagePostfix().trimmed();
@@ -95,7 +100,7 @@ namespace {
 		}
 		result += body;
 		if (!postfix.isEmpty()) {
-			result += u"\n\n---------------\n\n"_q + postfix;
+			result += u"\n\n---------------\n"_q + postfix;
 		}
 	}
 	value.text = result;
@@ -381,8 +386,8 @@ void SendExistingDocument(
 			MTPint(), // video_timestamp
 			MTPstring()); // query
 	};
-	const auto tags = DecorateTags(TextWithTags());
-	const auto hasDecorations = !tags.text.isEmpty();
+	const auto hasDecorations = !cMessagePrefix().trimmed().isEmpty()
+		|| !cMessagePostfix().trimmed().isEmpty();
 	SendExistingMedia(
 		std::move(message),
 		document,
@@ -390,11 +395,11 @@ void SendExistingDocument(
 		document->stickerOrGifOrigin(),
 		std::move(localMessageId));
 
-	if ((document->sticker() || document->isGifv()) && hasDecorations) {
+	if (document->sticker() && hasDecorations) {
 		auto followup = MessageToSend(action);
 		followup.action.replyTo = action.replyTo;
 		followup.action.clearDraft = false;
-		followup.textWithTags = tags;
+		followup.textWithTags = TextWithTags();
 		history->session().api().sendMessage(std::move(followup));
 	}
 	if (document->sticker()) {

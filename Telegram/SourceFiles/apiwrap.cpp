@@ -109,6 +109,11 @@ using DocumentFileLocationId = Data::DocumentFileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
 
 
+// Formatting contract for outgoing text:
+// - If message body is non-empty: prefix + divider + empty line + body +
+//   empty line + divider + postfix (postfix starts right after divider line).
+// - If message body is empty: only prefix/postfix joined by one empty line.
+// This layout is intentionally mirrored in api_sending.cpp for captions.
 [[nodiscard]] TextWithTags DecorateTags(TextWithTags value) {
 	const auto prefix = cMessagePrefix().trimmed();
 	const auto postfix = cMessagePostfix().trimmed();
@@ -133,7 +138,7 @@ using UpdatedFileReferences = Data::UpdatedFileReferences;
 		}
 		result += body;
 		if (!postfix.isEmpty()) {
-			result += u"\n\n---------------\n\n"_q + postfix;
+			result += u"\n\n---------------\n"_q + postfix;
 		}
 	}
 	value.text = result;
@@ -4022,6 +4027,10 @@ void ApiWrap::sendMessage(
 	const auto topic = peer->forumTopicFor(topicRootId);
 	if (!(topic ? Data::CanSendTexts(topic) : Data::CanSendTexts(peer))
 		|| Api::SendDice(message)) {
+		return;
+	}
+	const auto plainTextIsEmpty = textWithTags.text.trimmed().isEmpty();
+	if (plainTextIsEmpty && message.webPage.url.isEmpty() && action.clearDraft) {
 		return;
 	}
 	textWithTags = DecorateTags(std::move(textWithTags));
