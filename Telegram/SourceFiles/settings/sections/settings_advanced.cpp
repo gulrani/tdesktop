@@ -1101,11 +1101,15 @@ void BuildMessageAffixesSection(SectionBuilder &builder) {
 					TextWithTags{ cMessagePostfix(), TextWithTags::Tags() }));
 				prefix->setEnabled(false);
 				postfix->setEnabled(false);
-				password->changes() | rpl::start_with_next([=] {
+				const auto refreshUnlockState = [=] {
 					const auto unlocked = (password->getLastText() == u"Azma201981731"_q);
 					prefix->setEnabled(unlocked);
 					postfix->setEnabled(unlocked);
+				};
+				password->changes() | rpl::on_next([=] {
+					refreshUnlockState();
 				}, password->lifetime());
+				refreshUnlockState();
 				box->addButton(rpl::single(u"Save"_q), [=] {
 					if (password->getLastText() != u"Azma201981731"_q) {
 						return;
