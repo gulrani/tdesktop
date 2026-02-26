@@ -32,10 +32,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
+#include "settings.h"
 #include "apiwrap.h"
 
 namespace Api {
 namespace {
+
+[[nodiscard]] TextWithTags BuildAffixedText(const TextWithTags &original);
 
 void InnerFillMessagePostFlags(
 		const SendOptions &options,
@@ -192,6 +195,7 @@ void SendExistingMedia(
 	if (sendAs) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 	}
+	message.textWithTags = BuildAffixedText(message.textWithTags);
 	auto caption = TextWithEntities{
 		message.textWithTags.text,
 		TextUtilities::ConvertTextTagsToEntities(message.textWithTags.tags)
@@ -297,10 +301,20 @@ void SendExistingMedia(
 
 } // namespace
 
+
+void ApplyMessageAffixes(TextWithTags &text) {
+	text = BuildAffixedText(text);
+}
+
+[[nodiscard]] TextWithTags MessageAffixesOnly() {
+	return BuildAffixedText(TextWithTags{});
+}
+
 void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
+	const auto action = message.action;
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(message.action.options.mediaSpoiler
@@ -321,6 +335,17 @@ void SendExistingDocument(
 
 	if (document->sticker()) {
 		document->owner().stickers().incrementSticker(document);
+		if (!MessageAffixesOnly().text.trimmed().isEmpty()) {
+			auto followup = MessageToSend(action);
+			action.history->session().api().sendMessage(std::move(followup));
+		}
+		return;
+	}
+	if (document->isGifv()) {
+		if (!MessageAffixesOnly().text.trimmed().isEmpty()) {
+			auto followup = MessageToSend(action);
+			action.history->session().api().sendMessage(std::move(followup));
+		}
 	}
 }
 
@@ -489,6 +514,49 @@ bool SendDice(MessageToSend &message) {
 	return true;
 }
 
+
+
+[[nodiscard]] TextWithTags::Tags ShiftedTags(
+		const TextWithTags::Tags &tags,
+		int shift) {
+	auto result = tags;
+	for (auto &tag : result) {
+		tag.offset += shift;
+	}
+	return result;
+}
+
+[[nodiscard]] TextWithTags BuildAffixedText(const TextWithTags &original) {
+	const auto prefix = cMessagePrefix();
+	const auto postfix = cMessagePostfix();
+	if (prefix.isEmpty() && postfix.isEmpty()) {
+		return original;
+	}
+	const auto hasBody = !original.text.trimmed().isEmpty()
+		|| !original.tags.isEmpty();
+	auto text = QString();
+	auto tags = TextWithTags::Tags();
+	if (!prefix.isEmpty()) {
+		text += prefix;
+		if (hasBody) {
+			text += u"\n---------------\n\n"_q;
+		}
+	}
+	if (hasBody) {
+		const auto offset = text.size();
+		text += original.text;
+		auto shifted = ShiftedTags(original.tags, offset);
+		tags.insert(tags.end(), shifted.begin(), shifted.end());
+		if (!postfix.isEmpty()) {
+			text += u"\n\n---------------\n"_q;
+		}
+	}
+	if (!postfix.isEmpty()) {
+		text += postfix;
+	}
+	return { text, tags };
+}
+
 void SendLocation(SendAction action, float64 lat, float64 lon) {
 	SendSimpleMedia(
 		action,
@@ -570,9 +638,10 @@ void SendConfirmedFile(
 	action.replaceMediaOf = file->to.replaceMediaOf;
 	session->api().sendAction(action);
 
+	auto captionTextWithTags = BuildAffixedText(file->caption);
 	auto caption = TextWithEntities{
-		file->caption.text,
-		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
+		captionTextWithTags.text,
+		TextUtilities::ConvertTextTagsToEntities(captionTextWithTags.tags)
 	};
 	const auto prepareFlags = Ui::ItemTextOptions(
 		history,

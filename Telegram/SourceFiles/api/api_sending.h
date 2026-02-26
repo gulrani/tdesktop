@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_drafts.h"
+
 class History;
 class PhotoData;
 class DocumentData;
@@ -36,6 +38,9 @@ void SendExistingPhoto(
 	std::optional<MsgId> localMessageId = std::nullopt);
 
 bool SendDice(MessageToSend &message);
+
+void ApplyMessageAffixes(TextWithTags &text);
+[[nodiscard]] TextWithTags MessageAffixesOnly();
 
 // We can't create Data::LocationPoint() and use it
 // for a local sending message, because we can't request

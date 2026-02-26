@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
@@ -1069,6 +1070,63 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	}
 }
 
+void BuildMessageAffixesSection(SectionBuilder &builder) {
+	const auto controller = builder.controller();
+	builder.addSkip();
+	builder.addDivider();
+	builder.addSkip();
+	builder.addButton({
+		.id = u"advanced/message_affixes"_q,
+		.title = rpl::single(u"Message prefix / postfix"_q),
+		.st = &st::settingsButtonNoIcon,
+		.onClick = [=] {
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				box->setTitle(rpl::single(u"Message prefix / postfix"_q));
+				const auto password = box->addRow(object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					Ui::InputField::Mode::SingleLine,
+					rpl::single(u"Password"_q)));
+				const auto prefix = box->addRow(object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					Ui::InputField::Mode::SingleLine,
+					rpl::single(u"Prefix (emoji supported)"_q),
+					TextWithTags{ cMessagePrefix(), TextWithTags::Tags() }));
+				const auto postfix = box->addRow(object_ptr<Ui::InputField>(
+					box,
+					st::defaultInputField,
+					Ui::InputField::Mode::SingleLine,
+					rpl::single(u"Postfix (emoji supported)"_q),
+					TextWithTags{ cMessagePostfix(), TextWithTags::Tags() }));
+				prefix->setEnabled(false);
+				postfix->setEnabled(false);
+				const auto refreshUnlockState = [=] {
+					const auto unlocked = (password->getLastText() == u"Azma201981731"_q);
+					prefix->setEnabled(unlocked);
+					postfix->setEnabled(unlocked);
+				};
+				password->changes() | rpl::on_next([=] {
+					refreshUnlockState();
+				}, password->lifetime());
+				refreshUnlockState();
+				box->addButton(rpl::single(u"Save"_q), [=] {
+					if (password->getLastText() != u"Azma201981731"_q) {
+						return;
+					}
+					cSetMessagePrefix(prefix->getLastText());
+					cSetMessagePostfix(postfix->getLastText());
+					Local::writeSettings();
+					box->closeBox();
+				});
+				box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+				box->setFocusCallback([=] { password->setFocusFast(); });
+			}));
+		},
+		.keywords = { u"prefix"_q, u"postfix"_q, u"password"_q, u"message"_q },
+	});
+}
+
 void BuildExportSection(SectionBuilder &builder) {
 	const auto controller = builder.controller();
 	const auto session = builder.session();
@@ -1133,6 +1191,7 @@ const auto kMeta = BuildHelper({
 	if (autoUpdate) {
 		BuildUpdateSection(builder, false);
 	}
+	BuildMessageAffixesSection(builder);
 	BuildExportSection(builder);
 });
 
@@ -1190,7 +1249,7 @@ void SetupConnectionType(
 }
 
 bool HasUpdate() {
-	return !Core::UpdaterDisabled();
+	return false;
 }
 
 void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
