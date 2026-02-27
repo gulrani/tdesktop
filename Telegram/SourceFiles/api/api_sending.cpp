@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
 #include "ui/text/text_entity.h" // TextWithEntities.
+#include "ui/text/text_utilities.h"
 #include "ui/item_text_options.h" // Ui::ItemTextOptions.
 #include "main/main_session.h"
 #include "main/main_app_config.h"
@@ -45,66 +46,109 @@ namespace {
 // - Empty body: only prefix/postfix separated by one empty line.
 [[nodiscard]] TextWithTags DecorateTags(TextWithTags value) {
 	const auto prefix = cMessagePrefix().trimmed();
+	auto prefixTags = TextUtilities::DeserializeTags(
+		cMessagePrefixTags(),
+		prefix.size());
 	const auto postfix = cMessagePostfix().trimmed();
+	auto postfixTags = TextUtilities::DeserializeTags(
+		cMessagePostfixTags(),
+		postfix.size());
+	if (prefix.isEmpty()) {
+		prefixTags.clear();
+	}
+	if (postfix.isEmpty()) {
+		postfixTags.clear();
+	}
 	if (prefix.isEmpty() && postfix.isEmpty()) {
 		return value;
 	}
 	const auto body = value.text.trimmed();
 	auto result = QString();
+	auto resultTags = TextWithTags::Tags();
+	const auto appendTags = [&](TextWithTags::Tags tags, int offset) {
+		for (auto &tag : tags) {
+			tag.offset += offset;
+			resultTags.push_back(std::move(tag));
+		}
+	};
 	if (body.isEmpty()) {
 		if (!prefix.isEmpty()) {
+			appendTags(prefixTags, result.size());
 			result += prefix;
 		}
 		if (!postfix.isEmpty()) {
 			if (!result.isEmpty()) {
 				result += u"\n\n"_q;
 			}
+			appendTags(postfixTags, result.size());
 			result += postfix;
 		}
 	} else {
 		if (!prefix.isEmpty()) {
+			appendTags(prefixTags, result.size());
 			result += prefix + u"\n---------------\n\n"_q;
 		}
 		result += body;
 		if (!postfix.isEmpty()) {
-			result += u"\n\n---------------\n"_q + postfix;
+			result += u"\n\n---------------\n"_q;
+			appendTags(postfixTags, result.size());
+			result += postfix;
 		}
 	}
 	value.text = result;
-	value.tags.clear();
+	value.tags = std::move(resultTags);
 	return value;
 }
 
-// Keep entity-aware formatting exactly in sync with DecorateTags().
 [[nodiscard]] TextWithEntities DecorateEntities(TextWithEntities value) {
 	const auto prefix = cMessagePrefix().trimmed();
+	const auto prefixTags = TextUtilities::DeserializeTags(
+		cMessagePrefixTags(),
+		prefix.size());
 	const auto postfix = cMessagePostfix().trimmed();
+	const auto postfixTags = TextUtilities::DeserializeTags(
+		cMessagePostfixTags(),
+		postfix.size());
 	if (prefix.isEmpty() && postfix.isEmpty()) {
 		return value;
 	}
+	const auto prefixEntities = TextUtilities::ConvertTextTagsToEntities(prefixTags);
+	const auto postfixEntities = TextUtilities::ConvertTextTagsToEntities(postfixTags);
 	const auto body = value.text.trimmed();
 	auto result = QString();
+	auto resultEntities = EntitiesInText();
+	const auto appendEntities = [&](EntitiesInText entities, int offset) {
+		for (auto &entity : entities) {
+			entity.offset += offset;
+			resultEntities.push_back(std::move(entity));
+		}
+	};
 	if (body.isEmpty()) {
 		if (!prefix.isEmpty()) {
+			appendEntities(prefixEntities, result.size());
 			result += prefix;
 		}
 		if (!postfix.isEmpty()) {
 			if (!result.isEmpty()) {
 				result += u"\n\n"_q;
 			}
+			appendEntities(postfixEntities, result.size());
 			result += postfix;
 		}
 	} else {
 		if (!prefix.isEmpty()) {
+			appendEntities(prefixEntities, result.size());
 			result += prefix + u"\n---------------\n\n"_q;
 		}
 		result += body;
 		if (!postfix.isEmpty()) {
-			result += u"\n\n---------------\n"_q + postfix;
+			result += u"\n\n---------------\n"_q;
+			appendEntities(postfixEntities, result.size());
+			result += postfix;
 		}
 	}
 	value.text = result;
-	value.entities.clear();
+	value.entities = std::move(resultEntities);
 	return value;
 }
 

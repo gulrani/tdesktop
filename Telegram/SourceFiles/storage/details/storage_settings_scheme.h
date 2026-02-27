@@ -167,6 +167,8 @@ enum {
 	dbiBackgroundKey = 0x61,
 	dbiMessagePrefix = 0x62,
 	dbiMessagePostfix = 0x63,
+	dbiMessagePrefixTags = 0x64,
+	dbiMessagePostfixTags = 0x65,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,

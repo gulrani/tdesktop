@@ -116,33 +116,57 @@ using UpdatedFileReferences = Data::UpdatedFileReferences;
 // This layout is intentionally mirrored in api_sending.cpp for captions.
 [[nodiscard]] TextWithTags DecorateTags(TextWithTags value) {
 	const auto prefix = cMessagePrefix().trimmed();
+	auto prefixTags = TextUtilities::DeserializeTags(
+		cMessagePrefixTags(),
+		prefix.size());
 	const auto postfix = cMessagePostfix().trimmed();
+	auto postfixTags = TextUtilities::DeserializeTags(
+		cMessagePostfixTags(),
+		postfix.size());
+	if (prefix.isEmpty()) {
+		prefixTags.clear();
+	}
+	if (postfix.isEmpty()) {
+		postfixTags.clear();
+	}
 	if (prefix.isEmpty() && postfix.isEmpty()) {
 		return value;
 	}
 	const auto body = value.text.trimmed();
 	auto result = QString();
+	auto resultTags = TextWithTags::Tags();
+	const auto appendTags = [&](TextWithTags::Tags tags, int offset) {
+		for (auto &tag : tags) {
+			tag.offset += offset;
+			resultTags.push_back(std::move(tag));
+		}
+	};
 	if (body.isEmpty()) {
 		if (!prefix.isEmpty()) {
+			appendTags(prefixTags, result.size());
 			result += prefix;
 		}
 		if (!postfix.isEmpty()) {
 			if (!result.isEmpty()) {
 				result += u"\n\n"_q;
 			}
+			appendTags(postfixTags, result.size());
 			result += postfix;
 		}
 	} else {
 		if (!prefix.isEmpty()) {
+			appendTags(prefixTags, result.size());
 			result += prefix + u"\n---------------\n\n"_q;
 		}
 		result += body;
 		if (!postfix.isEmpty()) {
-			result += u"\n\n---------------\n"_q + postfix;
+			result += u"\n\n---------------\n"_q;
+			appendTags(postfixTags, result.size());
+			result += postfix;
 		}
 	}
 	value.text = result;
-	value.tags.clear();
+	value.tags = std::move(resultTags);
 	return value;
 }
 
@@ -4031,7 +4055,7 @@ void ApiWrap::sendMessage(
 	}
 	const auto plainTextIsEmpty = textWithTags.text.trimmed().isEmpty();
 	if (plainTextIsEmpty && message.webPage.url.isEmpty() && action.clearDraft) {
-		if (!history->forwardDraft(topicRootId, draftMonoforumPeerId).ids.empty()) {
+		if (!history->forwardDraft(draftTopicRootId, draftMonoforumPeerId).ids.empty()) {
 			finishForwarding(action);
 		}
 		return;

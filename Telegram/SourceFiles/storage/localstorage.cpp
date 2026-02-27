@@ -466,6 +466,8 @@ void writeSettings() {
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 	size += sizeof(quint32) + Serialize::stringSize(cMessagePrefix());
 	size += sizeof(quint32) + Serialize::stringSize(cMessagePostfix());
+	size += sizeof(quint32) + Serialize::bytearraySize(cMessagePrefixTags());
+	size += sizeof(quint32) + Serialize::bytearraySize(cMessagePostfixTags());
 
 	// Theme keys and night mode.
 	size += sizeof(quint32) + sizeof(quint64) * 2 + sizeof(quint32);
@@ -490,6 +492,8 @@ void writeSettings() {
 	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiMessagePrefix) << cMessagePrefix();
 	data.stream << quint32(dbiMessagePostfix) << cMessagePostfix();
+	data.stream << quint32(dbiMessagePrefixTags) << cMessagePrefixTags();
+	data.stream << quint32(dbiMessagePostfixTags) << cMessagePostfixTags();
 	data.stream << quint32(dbiPowerSaving) << qint32(powerSaving);
 
 	data.stream

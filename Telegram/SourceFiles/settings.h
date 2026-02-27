@@ -71,7 +71,9 @@ inline QString cDialogHelperPathFinal() {
 
 DeclareSetting(bool, AutoUpdate);
 DeclareSetting(QString, MessagePrefix);
+DeclareSetting(QByteArray, MessagePrefixTags);
 DeclareSetting(QString, MessagePostfix);
+DeclareSetting(QByteArray, MessagePostfixTags);
 
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);

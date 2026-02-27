@@ -716,6 +716,22 @@ bool ReadSetting(
 		cSetMessagePostfix(v);
 	} break;
 
+	case dbiMessagePrefixTags: {
+		QByteArray v;
+		stream >> v;
+		if (!CheckStreamStatus(stream)) return false;
+
+		cSetMessagePrefixTags(v);
+	} break;
+
+	case dbiMessagePostfixTags: {
+		QByteArray v;
+		stream >> v;
+		if (!CheckStreamStatus(stream)) return false;
+
+		cSetMessagePostfixTags(v);
+	} break;
+
 	case dbiScaleOld: {
 		qint32 v;
 		stream >> v;
