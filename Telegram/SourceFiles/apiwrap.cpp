@@ -4031,6 +4031,9 @@ void ApiWrap::sendMessage(
 	}
 	const auto plainTextIsEmpty = textWithTags.text.trimmed().isEmpty();
 	if (plainTextIsEmpty && message.webPage.url.isEmpty() && action.clearDraft) {
+		if (!history->forwardDraft(topicRootId, draftMonoforumPeerId).ids.empty()) {
+			finishForwarding(action);
+		}
 		return;
 	}
 	textWithTags = DecorateTags(std::move(textWithTags));
