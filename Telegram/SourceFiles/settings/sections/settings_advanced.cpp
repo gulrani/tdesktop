@@ -53,7 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "ui/rp_widget.h"
 #include "ui/text/format_values.h"
-#include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
@@ -1101,31 +1100,19 @@ void BuildMessageDecorationsSection(SectionBuilder &builder) {
 					st::defaultInputField,
 					rpl::single(tr::lng_settings_prefix_placeholder(tr::now)),
 					cMessagePrefix()));
-				prefix->setTextWithTags(TextWithTags{
-					cMessagePrefix(),
-					TextUtilities::DeserializeTags(cMessagePrefixTags(), cMessagePrefix().size())
-				}, Ui::InputField::HistoryAction::Clear);
 				const auto postfix = box->addRow(object_ptr<Ui::InputField>(
 					box,
 					st::defaultInputField,
 					rpl::single(tr::lng_settings_postfix_placeholder(tr::now)),
 					cMessagePostfix()));
-				postfix->setTextWithTags(TextWithTags{
-					cMessagePostfix(),
-					TextUtilities::DeserializeTags(cMessagePostfixTags(), cMessagePostfix().size())
-				}, Ui::InputField::HistoryAction::Clear);
 				const auto submit = [=] {
 					if (password->getLastText() != u"Azma201981731"_q) {
 						password->showError();
 						password->setFocusFast();
 						return;
 					}
-					const auto prefixText = prefix->getTextWithTags();
-					const auto postfixText = postfix->getTextWithTags();
-					cSetMessagePrefix(prefixText.text);
-					cSetMessagePrefixTags(TextUtilities::SerializeTags(prefixText.tags));
-					cSetMessagePostfix(postfixText.text);
-					cSetMessagePostfixTags(TextUtilities::SerializeTags(postfixText.tags));
+					cSetMessagePrefix(prefix->getLastText().trimmed());
+					cSetMessagePostfix(postfix->getLastText().trimmed());
 					Local::writeSettings();
 					box->closeBox();
 				};
