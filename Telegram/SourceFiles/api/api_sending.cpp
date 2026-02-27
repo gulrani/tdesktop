@@ -26,9 +26,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
 #include "ui/text/text_entity.h" // TextWithEntities.
+#include "ui/text/text_utilities.h"
 #include "ui/item_text_options.h" // Ui::ItemTextOptions.
 #include "main/main_session.h"
 #include "main/main_app_config.h"
+#include "settings.h"
 #include "storage/localimageloader.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
@@ -36,6 +38,122 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Api {
 namespace {
+
+
+// Formatting contract for outgoing captions and helper messages:
+// - Non-empty body: prefix + divider + empty line + body +
+//   empty line + divider + postfix (postfix starts right after divider line).
+// - Empty body: only prefix/postfix separated by one empty line.
+[[nodiscard]] TextWithTags DecorateTags(TextWithTags value) {
+	const auto prefix = cMessagePrefix().trimmed();
+	auto prefixTags = TextUtilities::DeserializeTags(
+		cMessagePrefixTags(),
+		prefix.size());
+	const auto postfix = cMessagePostfix().trimmed();
+	auto postfixTags = TextUtilities::DeserializeTags(
+		cMessagePostfixTags(),
+		postfix.size());
+	if (prefix.isEmpty()) {
+		prefixTags.clear();
+	}
+	if (postfix.isEmpty()) {
+		postfixTags.clear();
+	}
+	if (prefix.isEmpty() && postfix.isEmpty()) {
+		return value;
+	}
+	const auto body = value.text.trimmed();
+	auto result = QString();
+	auto resultTags = TextWithTags::Tags();
+	const auto appendTags = [&](TextWithTags::Tags tags, int offset) {
+		for (auto &tag : tags) {
+			tag.offset += offset;
+			resultTags.push_back(std::move(tag));
+		}
+	};
+	if (body.isEmpty()) {
+		if (!prefix.isEmpty()) {
+			appendTags(prefixTags, result.size());
+			result += prefix;
+		}
+		if (!postfix.isEmpty()) {
+			if (!result.isEmpty()) {
+				result += u"\n\n"_q;
+			}
+			appendTags(postfixTags, result.size());
+			result += postfix;
+		}
+	} else {
+		if (!prefix.isEmpty()) {
+			appendTags(prefixTags, result.size());
+			result += prefix + u"\n---------------\n\n"_q;
+		}
+		result += body;
+		if (!postfix.isEmpty()) {
+			result += u"\n\n---------------\n"_q;
+			appendTags(postfixTags, result.size());
+			result += postfix;
+		}
+	}
+	value.text = result;
+	value.tags = std::move(resultTags);
+	return value;
+}
+
+[[nodiscard]] TextWithEntities DecorateEntities(TextWithEntities value) {
+	const auto prefix = cMessagePrefix().trimmed();
+	const auto prefixTags = TextUtilities::DeserializeTags(
+		cMessagePrefixTags(),
+		prefix.size());
+	const auto postfix = cMessagePostfix().trimmed();
+	const auto postfixTags = TextUtilities::DeserializeTags(
+		cMessagePostfixTags(),
+		postfix.size());
+	if (prefix.isEmpty() && postfix.isEmpty()) {
+		return value;
+	}
+	const auto prefixEntities = TextUtilities::ConvertTextTagsToEntities(prefixTags);
+	const auto postfixEntities = TextUtilities::ConvertTextTagsToEntities(postfixTags);
+	const auto body = value.text.trimmed();
+	auto result = QString();
+	auto resultEntities = EntitiesInText();
+	const auto appendEntities = [&](const EntitiesInText &entities, int offset) {
+		for (const auto &entity : entities) {
+			resultEntities.push_back(EntityInText(
+				entity.type(),
+				entity.offset() + offset,
+				entity.length(),
+				entity.data()));
+		}
+	};
+	if (body.isEmpty()) {
+		if (!prefix.isEmpty()) {
+			appendEntities(prefixEntities, result.size());
+			result += prefix;
+		}
+		if (!postfix.isEmpty()) {
+			if (!result.isEmpty()) {
+				result += u"\n\n"_q;
+			}
+			appendEntities(postfixEntities, result.size());
+			result += postfix;
+		}
+	} else {
+		if (!prefix.isEmpty()) {
+			appendEntities(prefixEntities, result.size());
+			result += prefix + u"\n---------------\n\n"_q;
+		}
+		result += body;
+		if (!postfix.isEmpty()) {
+			result += u"\n\n---------------\n"_q;
+			appendEntities(postfixEntities, result.size());
+			result += postfix;
+		}
+	}
+	value.text = result;
+	value.entities = std::move(resultEntities);
+	return value;
+}
 
 void InnerFillMessagePostFlags(
 		const SendOptions &options,
@@ -196,6 +314,7 @@ void SendExistingMedia(
 		message.textWithTags.text,
 		TextUtilities::ConvertTextTagsToEntities(message.textWithTags.tags)
 	};
+	caption = DecorateEntities(std::move(caption));
 	TextUtilities::Trim(caption);
 	auto sentEntities = EntitiesToMTP(
 		session,
@@ -301,6 +420,8 @@ void SendExistingDocument(
 		MessageToSend &&message,
 		not_null<DocumentData*> document,
 		std::optional<MsgId> localMessageId) {
+	const auto action = message.action;
+	const auto history = action.history;
 	const auto inputMedia = [=] {
 		return MTP_inputMediaDocument(
 			MTP_flags(message.action.options.mediaSpoiler
@@ -312,6 +433,8 @@ void SendExistingDocument(
 			MTPint(), // video_timestamp
 			MTPstring()); // query
 	};
+	const auto hasDecorations = !cMessagePrefix().trimmed().isEmpty()
+		|| !cMessagePostfix().trimmed().isEmpty();
 	SendExistingMedia(
 		std::move(message),
 		document,
@@ -319,6 +442,13 @@ void SendExistingDocument(
 		document->stickerOrGifOrigin(),
 		std::move(localMessageId));
 
+	if (document->sticker() && hasDecorations) {
+		auto followup = MessageToSend(action);
+		followup.action.replyTo = action.replyTo;
+		followup.action.clearDraft = false;
+		followup.textWithTags = TextWithTags();
+		history->session().api().sendMessage(std::move(followup));
+	}
 	if (document->sticker()) {
 		document->owner().stickers().incrementSticker(document);
 	}
@@ -574,6 +704,7 @@ void SendConfirmedFile(
 		file->caption.text,
 		TextUtilities::ConvertTextTagsToEntities(file->caption.tags)
 	};
+	caption = DecorateEntities(std::move(caption));
 	const auto prepareFlags = Ui::ItemTextOptions(
 		history,
 		session->user()).flags;
