@@ -117,10 +117,13 @@ namespace {
 	const auto body = value.text.trimmed();
 	auto result = QString();
 	auto resultEntities = EntitiesInText();
-	const auto appendEntities = [&](EntitiesInText entities, int offset) {
-		for (auto &entity : entities) {
-			entity.offset += offset;
-			resultEntities.push_back(std::move(entity));
+	const auto appendEntities = [&](const EntitiesInText &entities, int offset) {
+		for (const auto &entity : entities) {
+			resultEntities.push_back(EntityInText(
+				entity.type(),
+				entity.offset() + offset,
+				entity.length(),
+				entity.data()));
 		}
 	};
 	if (body.isEmpty()) {
