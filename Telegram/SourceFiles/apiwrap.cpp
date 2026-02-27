@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_account.h"
+#include "settings.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/premium_limits_box.h"
@@ -106,6 +107,68 @@ constexpr auto kStatsSessionKillTimeout = 10 * crl::time(1000);
 using PhotoFileLocationId = Data::PhotoFileLocationId;
 using DocumentFileLocationId = Data::DocumentFileLocationId;
 using UpdatedFileReferences = Data::UpdatedFileReferences;
+
+
+// Formatting contract for outgoing text:
+// - If message body is non-empty: prefix + divider + empty line + body +
+//   empty line + divider + postfix (postfix starts right after divider line).
+// - If message body is empty: only prefix/postfix joined by one empty line.
+// This layout is intentionally mirrored in api_sending.cpp for captions.
+[[nodiscard]] TextWithTags DecorateTags(TextWithTags value) {
+	const auto prefix = cMessagePrefix().trimmed();
+	auto prefixTags = TextUtilities::DeserializeTags(
+		cMessagePrefixTags(),
+		prefix.size());
+	const auto postfix = cMessagePostfix().trimmed();
+	auto postfixTags = TextUtilities::DeserializeTags(
+		cMessagePostfixTags(),
+		postfix.size());
+	if (prefix.isEmpty()) {
+		prefixTags.clear();
+	}
+	if (postfix.isEmpty()) {
+		postfixTags.clear();
+	}
+	if (prefix.isEmpty() && postfix.isEmpty()) {
+		return value;
+	}
+	const auto body = value.text.trimmed();
+	auto result = QString();
+	auto resultTags = TextWithTags::Tags();
+	const auto appendTags = [&](TextWithTags::Tags tags, int offset) {
+		for (auto &tag : tags) {
+			tag.offset += offset;
+			resultTags.push_back(std::move(tag));
+		}
+	};
+	if (body.isEmpty()) {
+		if (!prefix.isEmpty()) {
+			appendTags(prefixTags, result.size());
+			result += prefix;
+		}
+		if (!postfix.isEmpty()) {
+			if (!result.isEmpty()) {
+				result += u"\n\n"_q;
+			}
+			appendTags(postfixTags, result.size());
+			result += postfix;
+		}
+	} else {
+		if (!prefix.isEmpty()) {
+			appendTags(prefixTags, result.size());
+			result += prefix + u"\n---------------\n\n"_q;
+		}
+		result += body;
+		if (!postfix.isEmpty()) {
+			result += u"\n\n---------------\n"_q;
+			appendTags(postfixTags, result.size());
+			result += postfix;
+		}
+	}
+	value.text = result;
+	value.tags = std::move(resultTags);
+	return value;
+}
 
 [[nodiscard]] std::shared_ptr<ChatHelpers::Show> ShowForPeer(
 		not_null<PeerData*> peer) {
@@ -3990,6 +4053,14 @@ void ApiWrap::sendMessage(
 		|| Api::SendDice(message)) {
 		return;
 	}
+	const auto plainTextIsEmpty = textWithTags.text.trimmed().isEmpty();
+	if (plainTextIsEmpty && message.webPage.url.isEmpty() && action.clearDraft) {
+		if (!history->forwardDraft(draftTopicRootId, draftMonoforumPeerId).ids.empty()) {
+			finishForwarding(action);
+		}
+		return;
+	}
+	textWithTags = DecorateTags(std::move(textWithTags));
 	local().saveRecentSentHashtags(textWithTags.text);
 
 	auto sending = TextWithEntities();
