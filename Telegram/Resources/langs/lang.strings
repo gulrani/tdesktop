@@ -842,6 +842,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_chats_from_folders_about" = "Keep archived chats from folders in the Archive even if they are unmuted and get a new message.";
 "lng_settings_destroy_title" = "Delete my account";
 "lng_settings_version_info" = "Version and updates";
+"lng_settings_message_decorations" = "Message prefix and postfix";
+"lng_settings_message_decorations_disabled" = "Disabled";
+"lng_settings_message_decorations_enabled" = "Enabled";
+"lng_settings_prefix_placeholder" = "Prefix (emojis allowed)";
+"lng_settings_postfix_placeholder" = "Postfix (emojis allowed)";
 "lng_settings_system_integration" = "System integration";
 "lng_settings_performance" = "Performance";
 "lng_settings_enable_hwaccel" = "Hardware accelerated video decoding";
